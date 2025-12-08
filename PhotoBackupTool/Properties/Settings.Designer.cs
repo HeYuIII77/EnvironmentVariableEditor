@@ -53,5 +53,32 @@ namespace PhotoBackupTool.Properties
             get { return ((string)(this["RawFormats"])); }
             set { this["RawFormats"] = value; }
         }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string VideoDestPath
+        {
+            get { return ((string)(this["VideoDestPath"])); }
+            set { this["VideoDestPath"] = value; }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string VideoFormats
+        {
+            get { return ((string)(this["VideoFormats"])); }
+            set { this["VideoFormats"] = value; }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("1")]
+        public int MaxDegreeOfParallelism
+        {
+            get { return ((int)(this["MaxDegreeOfParallelism"])); }
+            set { this["MaxDegreeOfParallelism"] = value; }
+        }
     }
 }
