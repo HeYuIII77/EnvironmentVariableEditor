@@ -14,6 +14,10 @@ namespace PhotoBackupTool
         public int OverallPercent { get; set; }
         public int FilePercent { get; set; }
         public string FileName { get; set; }
+        public int ChannelId { get; set; } = -1; // -1 表示无通道信息
+        public int ProcessedFiles { get; set; }
+        public int TotalFiles { get; set; }
+            public double ThroughputBytesPerSecond { get; set; }
         public double ElapsedSeconds { get; set; }
         public double EstimatedRemainingSeconds { get; set; }
     }
@@ -60,8 +64,92 @@ namespace PhotoBackupTool
                 try { totalBytesAll += new FileInfo(f).Length; } catch { }
             }
 
+            // 预先在目标侧创建完整目录树，避免并行复制时出现目录未创建的竞态
+            try
+            {
+                var dirsSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var f in allFiles)
+                {
+                    var ext = Path.GetExtension(f);
+                    var fileName = Path.GetFileName(f);
+                    var dest = GetDestinationPath(f, ext, fileName);
+                    var dir = Path.GetDirectoryName(dest);
+                    if (!string.IsNullOrEmpty(dir))
+                        dirsSet.Add(dir);
+                }
+
+                var dirs = dirsSet.ToList();
+                int totalDirs = dirs.Count;
+                int createdCount = 0;
+                if (totalDirs > 0)
+                {
+                    worker.ReportProgress(0, $"正在预创建目标目录 ({totalDirs} 个)...");
+                    int reportStep = Math.Max(1, totalDirs / 100);
+                    for (int i = 0; i < totalDirs; i++)
+                    {
+                        var d = dirs[i];
+                        try
+                        {
+                            if (!Directory.Exists(d))
+                                Directory.CreateDirectory(d);
+                            createdCount++;
+                        }
+                        catch (Exception ex)
+                        {
+                            // 记录目录创建失败但继续尝试其他目录
+                            try { ErrorLogger.LogException(ex, settings, allFiles.Length, 0, d); } catch { }
+                        }
+
+                        if ((i % reportStep) == 0 || i == totalDirs - 1)
+                        {
+                            int pct = totalDirs > 0 ? (int)((i + 1) * 100 / totalDirs) : 100;
+                            worker.ReportProgress(pct, $"预创建目录: {i + 1}/{totalDirs}");
+                        }
+                    }
+
+                    worker.ReportProgress(0, $"已预创建 {createdCount} 个目录");
+                }
+            }
+            catch (Exception ex)
+            {
+                try { ErrorLogger.LogException(ex, settings); } catch { }
+            }
+
             long cumulativeBytes = 0;
             var stopwatch = Stopwatch.StartNew();
+
+            // 初始化通道控制结构
+            int maxCh = Math.Max(1, settings.MaxDegreeOfParallelism);
+            var channelSemaphore = new SemaphoreSlim(maxCh, maxCh);
+            var channelUsed = new bool[maxCh];
+            var channelLock = new object();
+
+            Func<int> acquireChannel = () =>
+            {
+                channelSemaphore.Wait();
+                lock (channelLock)
+                {
+                    for (int i = 0; i < channelUsed.Length; i++)
+                    {
+                        if (!channelUsed[i])
+                        {
+                            channelUsed[i] = true;
+                            return i;
+                        }
+                    }
+                }
+                // should not reach here
+                return 0;
+            };
+
+            Action<int> releaseChannel = (id) =>
+            {
+                lock (channelLock)
+                {
+                    if (id >= 0 && id < channelUsed.Length) channelUsed[id] = false;
+                }
+                channelSemaphore.Release();
+            };
 
             worker.ReportProgress(0, "开始备份...");
 
@@ -75,10 +163,21 @@ namespace PhotoBackupTool
 
                     try
                     {
-                        await ProcessFileAsync(sourceFile, totalFiles, () => Interlocked.Read(ref cumulativeBytes), totalBytesAll, stopwatch);
+                        // 使用 channelId = 0 表示单通道，用于 UI 更新
+                        await ProcessFileAsync(sourceFile, totalFiles, () => Interlocked.Read(ref cumulativeBytes), totalBytesAll, stopwatch, 0);
                         try { Interlocked.Add(ref cumulativeBytes, new FileInfo(sourceFile).Length); } catch { }
                         Interlocked.Increment(ref processedFiles);
-                        worker.ReportProgress(CalculateProgress(processedFiles, totalFiles), $"已复制: {Path.GetFileName(sourceFile)}");
+                        worker.ReportProgress(CalculateProgress(processedFiles, totalFiles), new BackupProgressInfo
+                        {
+                            OverallPercent = CalculateProgress(processedFiles, totalFiles),
+                            FilePercent = 100,
+                            FileName = Path.GetFileName(sourceFile),
+                            ChannelId = 0,
+                            ProcessedFiles = processedFiles,
+                            TotalFiles = totalFiles,
+                            ElapsedSeconds = stopwatch.Elapsed.TotalSeconds,
+                            EstimatedRemainingSeconds = 0
+                        });
                     }
                     catch (OperationCanceledException)
                     {
@@ -116,11 +215,14 @@ namespace PhotoBackupTool
                         await sem.WaitAsync();
                         var t = Task.Run(async () =>
                         {
+                            int channelId = -1;
                             try
                             {
                                 try
                                 {
-                                    await ProcessFileAsync(sourceFile, totalFiles, () => Interlocked.Read(ref cumulativeBytes), totalBytesAll, stopwatch);
+                                    // Acquire a logical channel id for per-channel progress
+                                    channelId = acquireChannel();
+                                    await ProcessFileAsync(sourceFile, totalFiles, () => Interlocked.Read(ref cumulativeBytes), totalBytesAll, stopwatch, channelId);
                                 }
                                 catch (Exception ex)
                                 {
@@ -130,10 +232,21 @@ namespace PhotoBackupTool
 
                                 try { Interlocked.Add(ref cumulativeBytes, new FileInfo(sourceFile).Length); } catch { }
                                 Interlocked.Increment(ref processedFiles);
-                                worker.ReportProgress(CalculateProgress(processedFiles, totalFiles), $"已复制: {Path.GetFileName(sourceFile)}");
+                                worker.ReportProgress(CalculateProgress(processedFiles, totalFiles), new BackupProgressInfo
+                                {
+                                    OverallPercent = CalculateProgress(processedFiles, totalFiles),
+                                    FilePercent = 100,
+                                    FileName = Path.GetFileName(sourceFile),
+                                    ChannelId = channelId,
+                                    ProcessedFiles = processedFiles,
+                                    TotalFiles = totalFiles,
+                                    ElapsedSeconds = stopwatch.Elapsed.TotalSeconds,
+                                    EstimatedRemainingSeconds = 0
+                                });
                             }
                             finally
                             {
+                                try { releaseChannel(channelId); } catch { }
                                 sem.Release();
                             }
                         });
@@ -165,7 +278,7 @@ namespace PhotoBackupTool
             return jpegExtensions.Contains(extension) || rawExtensions.Contains(extension) || videoExtensions.Contains(extension);
         }
 
-        private async Task ProcessFileAsync(string sourceFile, int totalFiles, Func<long> getCumulativeBytes, long totalBytesAll, Stopwatch stopwatch)
+        private async Task ProcessFileAsync(string sourceFile, int totalFiles, Func<long> getCumulativeBytes, long totalBytesAll, Stopwatch stopwatch, int channelId = -1)
         {
             var extension = Path.GetExtension(sourceFile);
             var fileName = Path.GetFileName(sourceFile);
@@ -178,7 +291,21 @@ namespace PhotoBackupTool
                     return;
             }
 
-            await CopyFileWithProgressAsync(sourceFile, destinationPath, getCumulativeBytes, totalBytesAll, stopwatch);
+            // 确保目标目录存在（处理保留目录结构时可能需要创建多级目录）
+            try
+            {
+                var destDir = Path.GetDirectoryName(destinationPath);
+                if (!string.IsNullOrEmpty(destDir) && !Directory.Exists(destDir))
+                    Directory.CreateDirectory(destDir);
+            }
+            catch (Exception ex)
+            {
+                // 记录并抛出，交由上层处理
+                ErrorLogger.LogException(ex, settings, totalFiles, 0, sourceFile);
+                throw;
+            }
+
+            await CopyFileWithProgressAsync(sourceFile, destinationPath, getCumulativeBytes, totalBytesAll, stopwatch, channelId);
         }
 
         private string GetDestinationPath(string sourceFile, string extension, string fileName)
@@ -204,7 +331,7 @@ namespace PhotoBackupTool
             }
         }
 
-        private async Task CopyFileWithProgressAsync(string source, string dest, Func<long> getCumulativeBytes, long totalBytesAll, Stopwatch stopwatch)
+        private async Task CopyFileWithProgressAsync(string source, string dest, Func<long> getCumulativeBytes, long totalBytesAll, Stopwatch stopwatch, int channelId = -1)
         {
             // 使用异步读写以提高并发吞吐
             using (var sourceStream = new FileStream(source, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan))
@@ -240,6 +367,8 @@ namespace PhotoBackupTool
                         OverallPercent = overallPercent,
                         FilePercent = filePercent,
                         FileName = Path.GetFileName(source),
+                        ChannelId = channelId,
+                        ThroughputBytesPerSecond = speed,
                         ElapsedSeconds = elapsed,
                         EstimatedRemainingSeconds = remainingSeconds
                     };

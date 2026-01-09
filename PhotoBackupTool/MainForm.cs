@@ -138,11 +138,14 @@ namespace PhotoBackupTool
             txtRawDestPath.Text = Properties.Settings.Default.RawDestPath;
             txtVideoDestPath.Text = Properties.Settings.Default.VideoDestPath;
             // 恢复并行度
+            // 恢复并行度（使用下拉列表）
             try
             {
-                nudParallelism.Value = Math.Max(1, Math.Min(32, Properties.Settings.Default.MaxDegreeOfParallelism));
+                int saved = Math.Max(1, Math.Min(32, Properties.Settings.Default.MaxDegreeOfParallelism));
+                var str = saved.ToString();
+                if (cmbParallelism.Items.Contains(str)) cmbParallelism.SelectedItem = str; else cmbParallelism.SelectedIndex = 0;
             }
-            catch { nudParallelism.Value = 1; }
+            catch { cmbParallelism.SelectedIndex = 0; }
 
             // 初始化RAW格式复选框
             foreach (var format in photoFormats.Keys)
@@ -228,7 +231,7 @@ namespace PhotoBackupTool
         {
             try
             {
-                Properties.Settings.Default.MaxDegreeOfParallelism = (int)nudParallelism.Value;
+                Properties.Settings.Default.MaxDegreeOfParallelism = int.Parse(cmbParallelism.SelectedItem.ToString());
                 Properties.Settings.Default.Save();
             }
             catch { }
@@ -301,11 +304,13 @@ namespace PhotoBackupTool
                 SelectedVideoFormats = GetSelectedVideoFormats(),
                 DuplicateAction = (DuplicateAction)cmbDuplicateAction.SelectedIndex,
                 PreserveFolderStructure = true, // 默认保留目录结构，可后续加UI选项
-                MaxDegreeOfParallelism = (int)nudParallelism.Value
+                MaxDegreeOfParallelism = int.Parse(cmbParallelism.SelectedItem.ToString())
             };
 
             // 保存并行度到设置
             SaveParallelismSetting();
+            // 在开始备份前创建通道控件（按并行度）以显示每个通道的进度
+            try { EnsureChannelControls(int.Parse(cmbParallelism.SelectedItem.ToString())); } catch { }
             backupWorker.RunWorkerAsync(settings);
         }
 
@@ -388,25 +393,98 @@ namespace PhotoBackupTool
             }
         }
 
+        private void EnsureChannelControls(int channelCount)
+        {
+            if (flpChannels == null) return;
+            // 如果已经存在相同数量的进度条则直接返回
+            if (flpChannels.Controls.Count == channelCount) return;
+            flpChannels.Controls.Clear();
+
+            // 当通道小于等于4时，显示为单列，等于或大于5时启用滚动条（flpChannels 已配置 AutoScroll）
+            for (int i = 0; i < channelCount; i++)
+            {
+                var panel = new Panel { Width = flpChannels.Width - 25, Height = 44, Margin = new Padding(2) };
+                var lbl = new Label
+                {
+                    Name = $"lblFile_{i}",
+                    Text = $"通道 {i + 1}",
+                    AutoSize = false,
+                    Width = panel.Width - 80,
+                    Height = 18,
+                    Location = new Point(0, 0),
+                    TextAlign = ContentAlignment.MiddleLeft
+                };
+                var pb = new ProgressBar
+                {
+                    Name = $"pb_{i}",
+                    Width = panel.Width - 100,
+                    Height = 16,
+                    Value = 0,
+                    Location = new Point(0, 20)
+                };
+                var lblThroughput = new Label
+                {
+                    Name = $"lblThroughput_{i}",
+                    Text = "",
+                    AutoSize = false,
+                    Width = 80,
+                    Height = 18,
+                    Location = new Point(panel.Width - 80, 18),
+                    TextAlign = ContentAlignment.MiddleRight
+                };
+                panel.Controls.Add(lbl);
+                panel.Controls.Add(pb);
+                panel.Controls.Add(lblThroughput);
+                flpChannels.Controls.Add(panel);
+            }
+        }
+
         private void BackupWorker_ProgressChanged(object sender, ProgressChangedEventArgs e)
         {
             // 支持两种 UserState：BackupProgressInfo 或 string
             if (e.UserState is BackupProgressInfo info)
             {
-                // 总进度
+                // 总进度（不显示文件名以避免频繁抖动）
                 progressBar.Value = Math.Max(0, Math.Min(100, info.OverallPercent));
-                lblProgress.Text = $"{info.OverallPercent}% - {info.FileName}";
+                lblProgress.Text = $"{info.OverallPercent}%";
 
-                // 当前文件进度条
-                if (this.progressBarFile != null)
+                // 如果提供通道ID，则在对应通道上显示进度和文件名
+                if (info.ChannelId >= 0 && this.flpChannels != null)
                 {
-                    progressBarFile.Value = Math.Max(0, Math.Min(100, info.FilePercent));
-                }
+                    // 确保通道UI存在
+                    EnsureChannelControls(Math.Max(1, Properties.Settings.Default.MaxDegreeOfParallelism));
+                    var idx = info.ChannelId;
+                    if (idx < flpChannels.Controls.Count)
+                    {
+                        var panel = flpChannels.Controls[idx] as Panel;
+                            if (panel != null)
+                            {
+                                var pb = panel.Controls.OfType<ProgressBar>().FirstOrDefault();
+                                var lbl = panel.Controls.OfType<Label>().FirstOrDefault();
+                                var lblThroughput = panel.Controls.OfType<Label>().FirstOrDefault(l => l.Name == $"lblThroughput_{idx}");
+                                if (pb != null)
+                                    pb.Value = Math.Max(0, Math.Min(100, info.FilePercent));
+                                if (lbl != null)
+                                {
+                                    var displayName = info.FileName != null ? (info.FileName.Length > 40 ? info.FileName.Substring(0, 37) + "..." : info.FileName) : string.Empty;
+                                    lbl.Text = !string.IsNullOrEmpty(displayName) ? $"通道 {idx + 1}: {displayName}" : $"通道 {idx + 1}";
+                                }
+                                // 设置 ToolTip 为完整文件名
+                                if (!string.IsNullOrEmpty(info.FileName)) toolTip.SetToolTip(panel, info.FileName);
+                                if (lblThroughput != null)
+                                    lblThroughput.Text = info.ThroughputBytesPerSecond > 0 ? $"{(info.ThroughputBytesPerSecond / (1024.0 * 1024.0)):F2} MB/s" : "";
+                            }
+                    }
 
-                if (this.lblFileProgress != null)
-                {
-                    lblFileProgress.Text = $"当前文件: {info.FileName} ({info.FilePercent}%)";
+                    // 更新总体进度信息：已备份文件数/总文件数、已用时间、ETA
+                    if (this.lblTotalProgress != null)
+                        lblTotalProgress.Text = $"{info.ProcessedFiles}/{info.TotalFiles} 文件";
+                    if (this.lblElapsed != null)
+                        lblElapsed.Text = $"已用时间：{TimeSpan.FromSeconds(info.ElapsedSeconds):hh\\:mm\\:ss}";
+                    if (this.lblETA != null)
+                        lblETA.Text = info.EstimatedRemainingSeconds > 0 ? $"预计剩余：{TimeSpan.FromSeconds(info.EstimatedRemainingSeconds):hh\\:mm\\:ss}" : "预计剩余：未知";
                 }
+                // 不再使用单独的“当前文件进度”控件，所有文件进度通过通道显示
 
                 // 已用时间和 ETA
                 var elapsed = TimeSpan.FromSeconds(info.ElapsedSeconds);
@@ -454,8 +532,7 @@ namespace PhotoBackupTool
 
             progressBar.Value = 0;
             lblProgress.Text = "准备就绪";
-            if (this.progressBarFile != null) progressBarFile.Value = 0;
-            if (this.lblFileProgress != null) lblFileProgress.Text = "当前文件: -";
+            // 单文件进度控件已移除，使用通道显示代替
             if (this.lblElapsed != null) lblElapsed.Text = "已用时间：00:00:00";
             if (this.lblETA != null) lblETA.Text = "预计剩余：00:00:00";
         }

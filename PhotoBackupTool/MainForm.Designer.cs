@@ -60,11 +60,12 @@ namespace PhotoBackupTool
             this.lblElapsed = new System.Windows.Forms.Label();
             this.lblETA = new System.Windows.Forms.Label();
             this.lblProgress = new System.Windows.Forms.Label();
+            this.flpChannels = new System.Windows.Forms.FlowLayoutPanel();
             this.grpFolders = new System.Windows.Forms.GroupBox();
             this.grpFormatSelection = new System.Windows.Forms.GroupBox();
             this.grpSettings = new System.Windows.Forms.GroupBox();
             this.lblParallelism = new System.Windows.Forms.Label();
-            this.nudParallelism = new System.Windows.Forms.NumericUpDown();
+            this.cmbParallelism = new System.Windows.Forms.ComboBox();
             this.btnOpenErrorFolder = new System.Windows.Forms.Button();
             this.btnExportLog = new System.Windows.Forms.Button();
             this.grpProgress = new System.Windows.Forms.GroupBox();
@@ -72,7 +73,6 @@ namespace PhotoBackupTool
             this.grpFolders.SuspendLayout();
             this.grpFormatSelection.SuspendLayout();
             this.grpSettings.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.nudParallelism)).BeginInit();
             this.grpProgress.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -131,7 +131,7 @@ namespace PhotoBackupTool
             this.btnStartBackup.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnStartBackup.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.btnStartBackup.ForeColor = System.Drawing.Color.White;
-            this.btnStartBackup.Location = new System.Drawing.Point(608, 543);
+            this.btnStartBackup.Location = new System.Drawing.Point(608, 630);
             this.btnStartBackup.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.btnStartBackup.Name = "btnStartBackup";
             this.btnStartBackup.Size = new System.Drawing.Size(280, 50);
@@ -304,7 +304,7 @@ namespace PhotoBackupTool
             this.lstLog.Location = new System.Drawing.Point(15, 137);
             this.lstLog.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.lstLog.Name = "lstLog";
-            this.lstLog.Size = new System.Drawing.Size(250, 154);
+            this.lstLog.Size = new System.Drawing.Size(250, 229);
             this.lstLog.TabIndex = 11;
             // 
             // lblParallelHelp
@@ -324,7 +324,7 @@ namespace PhotoBackupTool
             // 
             // progressBarFile
             // 
-            this.progressBarFile.Location = new System.Drawing.Point(15, 101);
+            this.progressBarFile.Location = new System.Drawing.Point(15, 124);
             this.progressBarFile.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.progressBarFile.Name = "progressBarFile";
             this.progressBarFile.Size = new System.Drawing.Size(549, 25);
@@ -334,17 +334,17 @@ namespace PhotoBackupTool
             // 
             this.lblFileProgress.AutoSize = true;
             this.lblFileProgress.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F);
-            this.lblFileProgress.Location = new System.Drawing.Point(15, 80);
+            this.lblFileProgress.Location = new System.Drawing.Point(18, 104);
             this.lblFileProgress.Name = "lblFileProgress";
-            this.lblFileProgress.Size = new System.Drawing.Size(106, 17);
+            this.lblFileProgress.Size = new System.Drawing.Size(78, 17);
             this.lblFileProgress.TabIndex = 21;
-            this.lblFileProgress.Text = "当前文件进度：";
+            this.lblFileProgress.Text = "通道进度：";
             // 
             // lblElapsed
             // 
             this.lblElapsed.AutoSize = true;
             this.lblElapsed.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F);
-            this.lblElapsed.Location = new System.Drawing.Point(15, 130);
+            this.lblElapsed.Location = new System.Drawing.Point(15, 80);
             this.lblElapsed.Name = "lblElapsed";
             this.lblElapsed.Size = new System.Drawing.Size(115, 15);
             this.lblElapsed.TabIndex = 22;
@@ -354,7 +354,7 @@ namespace PhotoBackupTool
             // 
             this.lblETA.AutoSize = true;
             this.lblETA.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F);
-            this.lblETA.Location = new System.Drawing.Point(200, 130);
+            this.lblETA.Location = new System.Drawing.Point(200, 80);
             this.lblETA.Name = "lblETA";
             this.lblETA.Size = new System.Drawing.Size(115, 15);
             this.lblETA.TabIndex = 23;
@@ -369,6 +369,16 @@ namespace PhotoBackupTool
             this.lblProgress.Size = new System.Drawing.Size(83, 17);
             this.lblProgress.TabIndex = 12;
             this.lblProgress.Text = "总体进度：";
+            // 
+            // flpChannels
+            // 
+            this.flpChannels.AutoScroll = true;
+            this.flpChannels.FlowDirection = System.Windows.Forms.FlowDirection.TopDown;
+            this.flpChannels.Location = new System.Drawing.Point(15, 109);
+            this.flpChannels.Name = "flpChannels";
+            this.flpChannels.Size = new System.Drawing.Size(549, 131);
+            this.flpChannels.TabIndex = 25;
+            this.flpChannels.WrapContents = false;
             // 
             // grpFolders
             // 
@@ -410,7 +420,7 @@ namespace PhotoBackupTool
             // 
             this.grpSettings.Controls.Add(this.lblParallelHelp);
             this.grpSettings.Controls.Add(this.lblParallelism);
-            this.grpSettings.Controls.Add(this.nudParallelism);
+            this.grpSettings.Controls.Add(this.cmbParallelism);
             this.grpSettings.Controls.Add(this.btnOpenErrorFolder);
             this.grpSettings.Controls.Add(this.btnExportLog);
             this.grpSettings.Controls.Add(this.lblDuplicateAction);
@@ -419,7 +429,7 @@ namespace PhotoBackupTool
             this.grpSettings.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Bold);
             this.grpSettings.Location = new System.Drawing.Point(608, 200);
             this.grpSettings.Name = "grpSettings";
-            this.grpSettings.Size = new System.Drawing.Size(280, 336);
+            this.grpSettings.Size = new System.Drawing.Size(280, 423);
             this.grpSettings.TabIndex = 26;
             this.grpSettings.TabStop = false;
             this.grpSettings.Text = "备份设置与日志";
@@ -434,34 +444,26 @@ namespace PhotoBackupTool
             this.lblParallelism.TabIndex = 18;
             this.lblParallelism.Text = "并行度 (线程数)：";
             // 
-            // nudParallelism
+            // cmbParallelism
             // 
-            this.nudParallelism.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F);
-            this.nudParallelism.Location = new System.Drawing.Point(145, 93);
-            this.nudParallelism.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
-            this.nudParallelism.Maximum = new decimal(new int[] {
-            32,
-            0,
-            0,
-            0});
-            this.nudParallelism.Minimum = new decimal(new int[] {
-            1,
-            0,
-            0,
-            0});
-            this.nudParallelism.Name = "nudParallelism";
-            this.nudParallelism.Size = new System.Drawing.Size(92, 23);
-            this.nudParallelism.TabIndex = 19;
-            this.nudParallelism.Value = new decimal(new int[] {
-            4,
-            0,
-            0,
-            0});
+            this.cmbParallelism.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.cmbParallelism.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F);
+            this.cmbParallelism.Items.AddRange(new object[] {
+            "1",
+            "2",
+            "4",
+            "8",
+            "16"});
+            this.cmbParallelism.Location = new System.Drawing.Point(145, 93);
+            this.cmbParallelism.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
+            this.cmbParallelism.Name = "cmbParallelism";
+            this.cmbParallelism.Size = new System.Drawing.Size(92, 24);
+            this.cmbParallelism.TabIndex = 19;
             // 
             // btnOpenErrorFolder
             // 
             this.btnOpenErrorFolder.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F);
-            this.btnOpenErrorFolder.Location = new System.Drawing.Point(15, 300);
+            this.btnOpenErrorFolder.Location = new System.Drawing.Point(15, 378);
             this.btnOpenErrorFolder.Name = "btnOpenErrorFolder";
             this.btnOpenErrorFolder.Size = new System.Drawing.Size(120, 28);
             this.btnOpenErrorFolder.TabIndex = 21;
@@ -472,7 +474,7 @@ namespace PhotoBackupTool
             // btnExportLog
             // 
             this.btnExportLog.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F);
-            this.btnExportLog.Location = new System.Drawing.Point(145, 300);
+            this.btnExportLog.Location = new System.Drawing.Point(146, 378);
             this.btnExportLog.Name = "btnExportLog";
             this.btnExportLog.Size = new System.Drawing.Size(120, 28);
             this.btnExportLog.TabIndex = 22;
@@ -485,14 +487,13 @@ namespace PhotoBackupTool
             this.grpProgress.Controls.Add(this.lblTotalProgress);
             this.grpProgress.Controls.Add(this.lblProgress);
             this.grpProgress.Controls.Add(this.progressBar);
-            this.grpProgress.Controls.Add(this.lblFileProgress);
             this.grpProgress.Controls.Add(this.lblETA);
-            this.grpProgress.Controls.Add(this.progressBarFile);
             this.grpProgress.Controls.Add(this.lblElapsed);
+            this.grpProgress.Controls.Add(this.flpChannels);
             this.grpProgress.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Bold);
             this.grpProgress.Location = new System.Drawing.Point(20, 423);
             this.grpProgress.Name = "grpProgress";
-            this.grpProgress.Size = new System.Drawing.Size(580, 170);
+            this.grpProgress.Size = new System.Drawing.Size(580, 257);
             this.grpProgress.TabIndex = 27;
             this.grpProgress.TabStop = false;
             this.grpProgress.Text = "进度信息";
@@ -501,7 +502,7 @@ namespace PhotoBackupTool
             // 
             this.lblTotalProgress.AutoSize = true;
             this.lblTotalProgress.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.lblTotalProgress.Location = new System.Drawing.Point(400, 130);
+            this.lblTotalProgress.Location = new System.Drawing.Point(409, 80);
             this.lblTotalProgress.Name = "lblTotalProgress";
             this.lblTotalProgress.Size = new System.Drawing.Size(51, 15);
             this.lblTotalProgress.TabIndex = 24;
@@ -512,7 +513,7 @@ namespace PhotoBackupTool
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.Color.White;
-            this.ClientSize = new System.Drawing.Size(900, 603);
+            this.ClientSize = new System.Drawing.Size(900, 696);
             this.Controls.Add(this.grpProgress);
             this.Controls.Add(this.grpSettings);
             this.Controls.Add(this.grpFormatSelection);
@@ -531,7 +532,6 @@ namespace PhotoBackupTool
             this.grpFormatSelection.PerformLayout();
             this.grpSettings.ResumeLayout(false);
             this.grpSettings.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.nudParallelism)).EndInit();
             this.grpProgress.ResumeLayout(false);
             this.grpProgress.PerformLayout();
             this.ResumeLayout(false);
@@ -571,9 +571,10 @@ namespace PhotoBackupTool
         private System.Windows.Forms.GroupBox grpSettings;
         private System.Windows.Forms.GroupBox grpProgress;
         private System.Windows.Forms.Label lblTotalProgress;
-        private System.Windows.Forms.NumericUpDown nudParallelism;
+        private System.Windows.Forms.ComboBox cmbParallelism;
         private System.Windows.Forms.Label lblParallelism;
         private System.Windows.Forms.Label lblParallelHelp;
+        private System.Windows.Forms.FlowLayoutPanel flpChannels;
         private System.Windows.Forms.Button btnOpenErrorFolder;
         private System.Windows.Forms.Button btnExportLog;
     }
