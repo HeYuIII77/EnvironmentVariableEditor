@@ -72,7 +72,7 @@
 7. 完成或取消后输出最终结果
 
 ## 文件结构
-PhotoBackupTool/
+PhotoBackupTool/    
 ├── MainForm.cs                # 主窗体逻辑与 UI 交互    
 ├── MainForm.Designer.cs       # WinForms 界面定    
 ├── BackupManager.cs           # 核心备份与并行复制逻辑    
